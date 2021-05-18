@@ -5,7 +5,7 @@ from urllib.request import urlopen, Request
 import urllib.request, urllib.parse, urllib.error
 import urllib.parse
 
-AddonID = 'plugin.video.CubePlayMeta'
+AddonID = 'plugin.video.CubeTor'
 Addon = xbmcaddon.Addon(AddonID)
 addon_data_dir = xbmcvfs.translatePath(Addon.getAddonInfo("profile"))
 addonDir = Addon.getAddonInfo('path')
@@ -13,7 +13,12 @@ icon = os.path.join(addonDir,"icon.png")
 AddonName = Addon.getAddonInfo("name")
 
 
-def OpenURL(url, headers={}, user_data={}, cookieJar=None, justCookie=False):
+def OpenURL(url, headers={}, user_data={}, cookieJar=None, justCookie=False, ssl=False):
+	if ssl:
+		import ssl
+		ssl._create_default_https_context = ssl._create_unverified_context
+	else:
+		context = ""
 	req = Request(url)
 	headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; rv:11.0) Gecko/20100110 Firefox/11.0'
 	for k, v in headers.items():

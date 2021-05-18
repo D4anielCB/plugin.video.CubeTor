@@ -7,6 +7,10 @@ from urllib.request import urlopen, Request
 import urllib.request, urllib.parse, urllib.error
 import urllib.parse
 
+from metadatautils import MetadataUtils
+mg = MetadataUtils()
+mg.tmdb.api_key = 'bd6af17904b638d482df1a924f1eabb4'
+
 AddonID = 'plugin.video.CubeTor'
 Addon = xbmcaddon.Addon(AddonID)
 AddonName = Addon.getAddonInfo("name")
@@ -16,7 +20,7 @@ iconsDir = os.path.join(addonDir, "resources", "images")
 
 libDir = os.path.join(addonDir, 'resources', 'lib')
 sys.path.insert(0, libDir)
-import xx
+import xx, common
 
 addon_data_dir = xbmcvfs.translatePath(Addon.getAddonInfo("profile"))
 cacheDir = os.path.join(addon_data_dir, "cache")
@@ -34,7 +38,7 @@ def PeerSeed(url2):
 	import html
 	try:
 		link = quote_plus(html.unescape(url2))
-		seeds = xx.OpenURL("https://checker.openwebtorrent.com/check?magnet="+link)
+		seeds = common.OpenURL("https://checker.openwebtorrent.com/check?magnet="+link, ssl=True)
 		j = json.loads(seeds)
 	except:
 		j = {"error": "nao carregou"}
@@ -42,6 +46,26 @@ def PeerSeed(url2):
 #-----------------------------------------
 def Busca():
 	q = xbmcgui.Dialog().input("O que busca?")
+	if not q: return
+	#q = "Mortal Kombat"
+	link = xx.OpenURL("http://api.themoviedb.org/3/search/movie?api_key=bd6af17904b638d482df1a924f1eabb4&language=pt-br&query="+quote_plus(q))
+	entries=json.loads(link)
+	progress = xbmcgui.DialogProgress()
+	progress.create('Carregando...')
+	progress.update(0, "Carregando...")
+	prog = 1
+	for entry in entries['results']:
+		if (progress.iscanceled()): break
+		progtotal = int( 100*prog/len(entries['results']) )
+		progress.update(progtotal, str(progtotal)+" %")
+		prog+=1
+		try:
+			mm = mg.get_tmdb_details(tmdb_id=str(entry['id']), imdb_id="", tvdb_id="", title="", year="", media_type="movies", preftype="", manual_select=False, ignore_cache=False)
+			#xx.AddDir(str(entry['id']), "plugin://plugin.video.elementum/library/movie/play/"+str(entry['id'])+"?doresume=true", "PlayUrl", isFolder=False, IsPlayable=True, dados={'mmeta': mm})
+			xx.AddDir(str(entry['id']), str(entry['id']), "tmdb.Opcoes", isFolder=False, IsPlayable=True, dados={'mmeta': mm})
+		except:
+			pass
+	progress.close()
 	xx.AddDir(q+" Dublado 1080p", quote_plus(q+" Dublado 1080p"), "google.BuscaCat", "", info="", isFolder=True, IsPlayable=False)
 	xx.AddDir(q+" x265", quote_plus(q+" x265"), "google.BuscaCat", "", info="", isFolder=True, IsPlayable=False)
 	xx.AddDir(q+" YTS", quote_plus(q+" YTS"), "google.BuscaCat", "", info="", isFolder=True, IsPlayable=False)

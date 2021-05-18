@@ -20,12 +20,13 @@ iconsDir = os.path.join(addonDir, "resources", "images")
 
 libDir = os.path.join(addonDir, 'resources', 'lib')
 sys.path.insert(0, libDir)
-import xx, comando, comandotv, google, elementum, trakt, tmdb
+import xx, comando, comandotv, google, elementum, trakt, tmdb, trtv, download
 
 addon_data_dir = xbmcvfs.translatePath(Addon.getAddonInfo("profile"))
 cacheDir = os.path.join(addon_data_dir, "cache")
 
 Ctrakt = Addon.getSetting("Ctrakt") if Addon.getSetting("Ctrakt") != "" else None
+cDirtrtv = Addon.getSetting("cDirtrtv") if Addon.getSetting("cDirtrtv") != "" else None
 
 if not os.path.exists(cacheDir):
 	os.makedirs(cacheDir)
@@ -36,6 +37,9 @@ def Categories(): #0
 		xx.AddDir("Series Trakt (Coletadas)", "", "trakt.ListSeriesColetadas", isFolder=True)
 		xx.AddDir("Series Trakt (Watchlist)", "", "trakt.ListSeriesWatchList", isFolder=True)
 	xx.AddDir("Filmes Populares (TMDB)", "", "tmdb.ListMovies", isFolder=True)
+	xx.AddDir("Histórico Filmes (Elementum)", "", "tmdb.Historico", isFolder=True)
+	if cDirtrtv:
+		xx.AddDir("Trtv.to", "", "trtv.Categories", isFolder=True)
 	xx.AddDir("Series Elementum", "", "elementum.ListSeries", isFolder=True)
 	xx.AddDir("Comando.org", "", "comando.org", isFolder=True)
 	xx.AddDir("Comando.TV", "", "comando.tv", isFolder=True)
@@ -81,6 +85,35 @@ elif mode == "comando.tv":
 	comandoTV()
 	xx.setViewM2()
 #-------------------------------
+elif mode == "trtv.Categories":
+	trtv.Categories()
+	xx.setViewM()
+elif mode == "trtv.SeriesFolder":
+	trtv.SeriesFolder()
+	xx.setViewS()
+elif mode == "trtv.EpisodesFolder":
+	trtv.EpisodesFolder()
+	xx.setViewS2()
+elif mode == "trtv.MoviesFolder":
+	trtv.MoviesFolder()
+	xx.setViewM()
+elif mode == "download.StopDownload":
+	download.StopDownload()
+elif mode == "trtv.Busca":
+	trtv.Busca()
+	xx.setViewM2()
+elif mode == "trtv.Episodes":
+	trtv.Episodes()
+	xx.setViewS2()
+elif mode == "trtv.DownloadMP4":
+	trtv.DownloadMP4()
+elif mode == "trtv.ResumeFile":
+	trtv.ResumeFile()
+elif mode == "trtv.PlayFile":
+	trtv.PlayFile()
+elif mode == "trtv.DeleteFile":
+	trtv.DeleteFile()
+#-------------------------------
 elif mode == "tmdb.ListMovies":
 	tmdb.ListMovies()
 	xx.setViewS()
@@ -90,6 +123,9 @@ elif mode == "tmdb.Ano":
 	tmdb.Ano()
 elif mode == "tmdb.Opcoes":
 	tmdb.Opcoes()
+elif mode == "tmdb.Historico":
+	tmdb.Historico()
+	xx.setViewM()
 #-------------------------------
 elif mode == "trakt.ListSeriesVistas":
 	trakt.ListSeries()
@@ -151,6 +187,8 @@ elif mode == "comandotv.PlayTorrents":
 #-------------------------------
 elif mode == "PlayUrl":
 	xx.PlayUrl(name, url)
+elif mode == "PlayUrlLeg":
+	xx.PlayUrl(name, url, True)
 elif mode == "google.Busca":
 	google.Busca()
 	xx.setViewM2()

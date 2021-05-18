@@ -94,7 +94,7 @@ def Episodes():
 				if (progress.iscanceled()): break
 				pc = 1 if dados2['meta']['tmdb_id']+url+str(entry["episode_number"]) in trak else None
 				play = "plugin://plugin.video.elementum/library/show/play/"+dados2['meta']["tmdb_id"]+"/"+url+"/"+str(entry["episode_number"])
-				xx.AddDir( "a" , play, "PlayUrl", isFolder=False, IsPlayable=True, dados={'meta': dados2['meta'], 'season': url, 'episode': str(entry["episode_number"]), 'pc': pc})
+				xx.AddDir( "" , play, "PlayUrl", isFolder=False, IsPlayable=True, dados={'meta': dados2['meta'], 'season': url, 'episode': str(entry["episode_number"]), 'pc': pc})
 		except:
 			pass
 	progress.close()

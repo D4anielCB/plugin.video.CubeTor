@@ -39,9 +39,35 @@ logos = params.get('logos',[None])[0]
 info = params.get('info',[None])[0]
 dados = params.get('dados',[{}])[0]
 #-----------------------------------------
-def PlayUrl(name, url): #1
+def PlayUrl(name, url, srt=False): #1
+	dados2 = eval(dados)
+	#ST(dados2)
+	if "mmeta" in dados2:
+		try:
+			ids = json.dumps({u'tmdb': dados2['mmeta']['tmdb_id']})
+			xbmcgui.Window(10000).setProperty('script.trakt.ids', ids)
+		except:
+			pass
+	if "meta" in dados2:
+		try:
+			ids = json.dumps({u'tmdb': dados2['meta']['tmdb_id']})
+			xbmcgui.Window(10000).setProperty('script.trakt.ids', ids)
+		except:
+			pass
 	xbmc.log('--- Playing "{0}". {1}'.format(name, url), 2)
 	listitem = xbmcgui.ListItem(path=url)
+	if srt:
+		from pathlib import Path
+		try:
+			path = xbmc.translatePath( "special://temp" )
+			paths = sorted(Path(path).iterdir(), key=os.path.getmtime)
+			for entry in reversed(paths):
+				if ".srt" in str(entry):
+					listitem.setSubtitles([str(entry), str(entry) ])
+					break
+		except:
+			pass
+	listitem.setInfo( "video", {} )
 	#listitem.setMimeType('video/mp2t')
 	xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, listitem)
 # --------------------------------------------------
@@ -138,6 +164,13 @@ def AddDir(name, url, mode, iconimage='', logos='', info='', dados={}, isFolder=
 		liz.setArt({"icon":iconimage ,"poster": iconimage, "banner": logos, "fanart": logos, "thumb": iconimage })
 	if IsPlayable:
 		liz.setProperty('IsPlayable', 'true')
+	if mode == "trtv.PlayFile":
+		liz.addContextMenuItems(items = [("Download", 'RunPlugin({0}?mode=trtv.DownloadMP4&url={1}&dados={2})'.format(sys.argv[0], quote_plus(url), quote_plus(str(dados)) ))])
+	elif mode == "PlayUrl" and info == "delete":
+		items = [("Resume Download", 'RunPlugin({0}?mode=trtv.ResumeFile&url={1}&dados={2})'.format(sys.argv[0], quote_plus(url), quote_plus(str(dados)) )),
+		("Deletar arquivo", 'RunPlugin({0}?mode=trtv.DeleteFile&url={1}&dados={2})'.format(sys.argv[0], quote_plus(url), quote_plus(str(dados)) ))]
+		liz.addContextMenuItems(items)
+		#liz.addContextMenuItems(items = [])
 	u = '{0}?{1}'.format(sys.argv[0], urllib.parse.urlencode(urlParams))
 	xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=u, listitem=liz, isFolder=isFolder)
 # --------------------------------------------------
@@ -166,6 +199,9 @@ def setViewS3():
 	xbmc.executebuiltin("Container.SetViewMode(54)")
 def setViewM():
 	xbmcplugin.setContent(int(sys.argv[1]), 'movies')
+	for s in Sortxbmc:
+		xbmcplugin.addSortMethod(int(sys.argv[1]), eval("xbmcplugin."+s))
+	xbmc.executebuiltin("Container.SetViewMode(50)")
 def setViewM2():
 	xbmcplugin.setContent(int(sys.argv[1]), 'movies')
 	for s in Sortxbmc:
@@ -216,6 +252,12 @@ def PaginacaoMais():
 	Addon.setSetting(dados2['page'], str(int(url) + 1) )
 	xbmc.executebuiltin("Container.Refresh()")
 #----------------------------------------
+def remove_accents(input_str):
+	import unicodedata
+	nfkd_form = unicodedata.normalize('NFKD', input_str)
+	only_ascii = nfkd_form.encode('ASCII', 'ignore')
+	return only_ascii.decode("utf-8") 
+	
 def ST(x="", o="w"):
 	if o == "1":
 		o = "a+"
