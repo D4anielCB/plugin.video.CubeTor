@@ -18,6 +18,12 @@ addonDir = Addon.getAddonInfo('path')
 icon = os.path.join(addonDir,"icon.png")
 iconsDir = os.path.join(addonDir, "resources", "images")
 
+MUlang = "pt-BR" if Addon.getSetting("MUlang") == "1" else "en"
+MUlangM = "pt-BR" if Addon.getSetting("MUlangM") == "1" else "en"
+MUcache = True if Addon.getSetting("MUcache") == "true" else False
+MUcacheEpi = True if Addon.getSetting("MUcacheEpi") == "true" else False
+MUfanArt = True if Addon.getSetting("MUfanArt") == "true" else False
+
 libDir = os.path.join(addonDir, 'resources', 'lib')
 sys.path.insert(0, libDir)
 import xx, common
@@ -44,32 +50,80 @@ def PeerSeed(url2):
 		j = {"error": "nao carregou"}
 	return j
 #-----------------------------------------
-def Busca():
-	q = xbmcgui.Dialog().input("O que busca?")
-	if not q: return
+def BuscaTvShowsPre():
+	q = xbmcgui.Dialog().input("O que busca? (Séries)")
+	if not q:
+		RP = "plugin://plugin.video.CubeTor/?mode=&url="
+		xbmc.executebuiltin('ActivateWindow(10025,"'+RP+'")')
+		return
+	RP = "plugin://plugin.video.CubeTor/?mode=google.BuscaTvShows&url="+quote_plus(q)
+	xbmc.executebuiltin('ActivateWindow(10025,"'+RP+'")')
+def BuscaTvShows():
+	link = xx.OpenURL("http://api.themoviedb.org/3/search/tv?api_key=bd6af17904b638d482df1a924f1eabb4&language=en&query="+quote_plus(url))
+	entries=json.loads(link)
+	#ST(entries)
+	#mmm = mg.get_tvshow_details(title="",tmdb_id=url, ignore_cache=MUcache, lang=MUlang)
+	progress = xbmcgui.DialogProgress()
+	progress.create('Carregando...')
+	progress.update(0, "Carregando...")
+	prog = 1
+	progress.close()
+	for entry in entries['results']:
+		#ST(entry)
+		if (progress.iscanceled()): break
+		progtotal = int( 100*prog/len(entries['results']) )
+		progress.update(progtotal, str(progtotal)+" %")
+		prog+=1
+		try:
+			mmm = mg.get_tvshow_details(title="",tmdb_id=str(entry["id"]), ignore_cache=MUcache, lang=MUlang)
+			#xx.AddDir(str(entry['id']), "plugin://plugin.video.elementum/library/movie/play/"+str(entry['id'])+"?doresume=true", "PlayUrl", isFolder=False, IsPlayable=True, dados={'mmeta': mm})
+			xx.AddDir(mmm[-1]["TVShowTitle"], mmm[-1]["tmdb_id"], "trakt.Shows", isFolder=True, dados={'meta': mmm[-1]})
+		except:
+			pass
+#-----------------------------------------
+def BuscaFilmesPre():
+	q = xbmcgui.Dialog().input("Se quiser colocar o ano faça dessa forma: Titanic, 1997")
+	#q = "Mortal Kombat, 2021"
+	if not q:
+		RP = "plugin://plugin.video.CubeTor/?mode=&url="
+		xbmc.executebuiltin('ActivateWindow(10025,"'+RP+'")')
+		return
+	RP = "plugin://plugin.video.CubeTor/?mode=google.BuscaFilmes&url="+quote_plus(q)
+	xbmc.executebuiltin('ActivateWindow(10025,"'+RP+'")')
 	#q = "Mortal Kombat"
-	link = xx.OpenURL("http://api.themoviedb.org/3/search/movie?api_key=bd6af17904b638d482df1a924f1eabb4&language=pt-br&query="+quote_plus(q))
+def BuscaFilmes():
+	yearre = re.compile(", (\d{4})$").findall(url)
+	query = quote_plus(re.sub(', (\d{4})$', '', url))
+	if yearre:
+		year="&year="+yearre[0]
+	else:
+		year=""
+	ST("http://api.themoviedb.org/3/search/movie?api_key=bd6af17904b638d482df1a924f1eabb4&language=pt-br&query="+query+year)
+	link = xx.OpenURL("http://api.themoviedb.org/3/search/movie?api_key=bd6af17904b638d482df1a924f1eabb4&language=pt-br&query="+query+year)
 	entries=json.loads(link)
 	progress = xbmcgui.DialogProgress()
 	progress.create('Carregando...')
 	progress.update(0, "Carregando...")
 	prog = 1
+	trak = xx.traktM()
 	for entry in entries['results']:
 		if (progress.iscanceled()): break
 		progtotal = int( 100*prog/len(entries['results']) )
 		progress.update(progtotal, str(progtotal)+" %")
 		prog+=1
 		try:
-			mm = mg.get_tmdb_details(tmdb_id=str(entry['id']), imdb_id="", tvdb_id="", title="", year="", media_type="movies", preftype="", manual_select=False, ignore_cache=False)
+			mm = mg.get_tmdb_details(tmdb_id=str(entry['id']), imdb_id="", tvdb_id="", title="", year="", media_type="movies", preftype="", manual_select=False, ignore_cache=False, lang=MUlangM)
+			pc = 1 if str(mm["tmdb_id"]) in trak else None
 			#xx.AddDir(str(entry['id']), "plugin://plugin.video.elementum/library/movie/play/"+str(entry['id'])+"?doresume=true", "PlayUrl", isFolder=False, IsPlayable=True, dados={'mmeta': mm})
-			xx.AddDir(str(entry['id']), str(entry['id']), "tmdb.Opcoes", isFolder=False, IsPlayable=True, dados={'mmeta': mm})
+			xx.AddDir("", str(entry['id']), "tmdb.Opcoes", isFolder=False, IsPlayable=True, dados={'mmeta': mm, 'pc': pc})
 		except:
 			pass
 	progress.close()
-	xx.AddDir(q+" Dublado 1080p", quote_plus(q+" Dublado 1080p"), "google.BuscaCat", "", info="", isFolder=True, IsPlayable=False)
-	xx.AddDir(q+" x265", quote_plus(q+" x265"), "google.BuscaCat", "", info="", isFolder=True, IsPlayable=False)
-	xx.AddDir(q+" YTS", quote_plus(q+" YTS"), "google.BuscaCat", "", info="", isFolder=True, IsPlayable=False)
-	xx.AddDir(q, quote_plus(q), "google.BuscaCat", "", info="", isFolder=True, IsPlayable=False)
+	xx.AddDir(url+" Dublado 1080p", quote_plus(url+" Dublado 1080p"), "google.BuscaCat", "", info="", isFolder=True, IsPlayable=False)
+	xx.AddDir(url+" x265", quote_plus(url+" x265"), "google.BuscaCat", "", info="", isFolder=True, IsPlayable=False)
+	xx.AddDir(url+" YTS", quote_plus(url+" YTS"), "google.BuscaCat", "", info="", isFolder=True, IsPlayable=False)
+	xx.AddDir(url, quote_plus(url), "google.BuscaCat", "", info="", isFolder=True, IsPlayable=False)
+#-----------------------------------------
 def BuscaCat():
 	try:
 		google = xx.OpenURL("https://www.google.com/search?q="+url+"+torrent")

@@ -21,11 +21,14 @@ iconsDir = os.path.join(addonDir, "resources", "images")
 libDir = os.path.join(addonDir, 'resources', 'lib')
 sys.path.insert(0, libDir)
 #import common
-Ctrakt = Addon.getSetting("Ctrakt") if Addon.getSetting("Ctrakt") != "" else None
+Ctrakt = Addon.getSetting("Ctrakt") if Addon.getSetting("Ctrakt") != "" else ""
 MUlang = "pt-BR" if Addon.getSetting("MUlang") == "1" else "en"
 MUcache = True if Addon.getSetting("MUcache") == "true" else False
 MUcacheEpi = True if Addon.getSetting("MUcacheEpi") == "true" else False
 MUfanArt = True if Addon.getSetting("MUfanArt") == "true" else False
+
+cDirtrtv = Addon.getSetting("cDirtrtv") if Addon.getSetting("cDirtrtv") != "" else ""
+cDirtrtvDown = Addon.getSetting("cDirtrtvDown") if Addon.getSetting("cDirtrtvDown") != "" else ""
 
 addon_data_dir = xbmcvfs.translatePath(Addon.getAddonInfo("profile"))
 cacheDir = os.path.join(addon_data_dir, "cache")
@@ -41,15 +44,15 @@ dados = params.get('dados',[{}])[0]
 #-----------------------------------------
 def StartDownload(url="", file="", ref=""):
 	if Addon.getSetting("cDownload") == "True":
-		d = xbmcgui.Dialog().yesno("CubeTor", "Parar o download e começar esse?")
-		if d:
-			Addon.setSetting("cDownload", "False")
-			xbmc.sleep(6000)
-			Addon.setSetting("cDownload", "True")
-			Download(url, file, ref)
+		#d = xbmcgui.Dialog().yesno("CubeTor", "Parar o download e começar esse?")
+		#if d:
+		Addon.setSetting("cDownload", "False")
+		xbmc.sleep(6000)
+		Addon.setSetting("cDownload", "True")
+		Download(url, file, ref)
 	else:
-		d = xbmcgui.Dialog().yesno("CubeTor", "Começar o download?")
-		if not d: return
+		#d = xbmcgui.Dialog().yesno("CubeTor", "Começar o download?")
+		#if not d: return
 		Addon.setSetting("cDownload", "True")
 		Download(url, file, ref)
 	#Download("https://s1.movies.futbol/web-sources/download/475DC76CEA238433/275941/Chernobyl+-+Season+1%3a+miniseries+-+1%3a23%3a45+(Trailers.to).mp4", "http://trailers.to")
@@ -58,9 +61,9 @@ def StopDownload():
 	if Addon.getSetting("cDownload") == "False":
 		xbmcgui.Dialog().ok("CubeTor", "Nenhum download ativo")
 		return
-	d = xbmcgui.Dialog().yesno("CubeTor", "Stop Downloading?")
-	if d:
-		Addon.setSetting("cDownload", "False")
+	#d = xbmcgui.Dialog().yesno("CubeTor", "Stop Downloading?")
+	#if d:
+	Addon.setSetting("cDownload", "False")
 		
 def convert_size(size_bytes):
    if size_bytes == 0:
@@ -81,6 +84,7 @@ def Download(url="", file="", ref=""):
 	req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/248.65')
 	sizechunk = 10 * 1024 * 1024
 	File = file +".mp4" if not ".mp4" in file else file
+	#ST(File)
 	try:
 		file_stats = os.stat(File)
 		escrever = 'ab+'
@@ -100,12 +104,75 @@ def Download(url="", file="", ref=""):
 	length = re.compile('ength\: ?(\d+)').findall(str(resp.headers))
 	length = int(length[0]) + totalsize
 	tamanho = convert_size(length)
+	#ST(tamanho)
+	if length < 11755023:
+		NF("Vídeo não disponível 404")
+		return
+	prog=0
+	progress = xbmcgui.DialogProgressBG()
+	arquivo = re.compile('.+(T|M)\d+ \d+ (.+)').findall(file)
+	#ST(arquivo[0][1])
+	#return
+	progress.create(arquivo[0][1] +" "+ tamanho)
+	with open(File, escrever) as f:
+		while xbmcaddon.Addon('plugin.video.CubeTor').getSetting("cDownload") == "True":
+			chunk = resp.read(sizechunk)
+			if not chunk:
+				#NF("parou")
+				break
+			progtotal = int( 100*totalsize/(length) )
+			progress.update(progtotal, "")
+			prog+=1
+			f.write(chunk)
+			totalsize+=sizechunk
+	NF("Download concluido", 1000)
+	Addon.setSetting("cDownload", "False")
+	progress.close()
+#----------------------------------------
+def Download2(url="", file="", ref=""):
+	if not url: return
+	req = Request(url)
+	if ref:
+		req.add_header('referer', ref)
+	#req.add_header('Content-Type', 'video/mp4')
+	req.add_header('Accept-Ranges', 'bytes')
+	req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/248.65')
+	sizechunk = 10 * 1024 * 1024
+	#ST()
+	File =  os.path.join(cDirtrtvDown, file)
+	#File =   file
+	#ST(File)
+	try:
+		file_stats = os.stat(File)
+		#ST(file_stats)
+		escrever = 'ab+'
+		file_a_size = (file_stats.st_size)
+		totalsize = file_a_size
+		#req.add_header('Range', 'bytes='+str(file_a_size)+'-')
+		NF("Retomando o download", 1000)
+	except:
+		totalsize = 0
+		escrever = 'wb'
+	#ST(totalsize)
+	try:
+		resp = urlopen(req)
+	except:
+		Addon.setSetting("cDownload", "False")
+		NF("Download pode ter acabado",1000)
+		return
+	#ST(resp.headers)
+	length = re.compile('ength\: ?(\d+)').findall(str(resp.headers))
+	length = int(length[0]) + totalsize
+	tamanho = convert_size(length)
 	#return
 	prog=0
 	progress = xbmcgui.DialogProgressBG()
-	progress.create(file +" "+ tamanho+ ".mp4")
+	arquivo = file
+	#ST(arquivo[0][1])
+	#return
+	progress.create(arquivo +" "+ tamanho)
 	with open(File, escrever) as f:
-		while xbmcaddon.Addon('plugin.video.CubeTor').getSetting("cDownload") == "True":
+		while True:
 			chunk = resp.read(sizechunk)
 			if not chunk:
 				#NF("parou")

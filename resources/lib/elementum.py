@@ -20,7 +20,7 @@ iconsDir = os.path.join(addonDir, "resources", "images")
 
 libDir = os.path.join(addonDir, 'resources', 'lib')
 sys.path.insert(0, libDir)
-import xx
+import xx,download
 
 MUlang = "pt-BR" if Addon.getSetting("MUlang") == "1" else "en"
 MUcache = True if Addon.getSetting("MUcache") == "true" else False
@@ -39,6 +39,8 @@ logos = params.get('logos',[None])[0]
 info = params.get('info',[None])[0]
 dados = params.get('dados',[{}])[0]
 #-----------------------------------------
+def Download():
+	download.Download2("https://github.com/elgatito/plugin.video.elementum/releases/download/v0.1.82/plugin.video.elementum-0.1.82.zip?","elementum.zip","")
 def ListSeries():
 	folder = addon_data_dir.replace("plugin.video.CubeTor","plugin.video.elementum")
 	settings = os.path.join(folder, "settings.xml")

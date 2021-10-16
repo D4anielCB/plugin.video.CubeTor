@@ -21,7 +21,7 @@ iconsDir = os.path.join(addonDir, "resources", "images")
 libDir = os.path.join(addonDir, 'resources', 'lib')
 sys.path.insert(0, libDir)
 #import common
-Ctrakt = Addon.getSetting("Ctrakt") if Addon.getSetting("Ctrakt") != "" else None
+Ctrakt = Addon.getSetting("Ctrakt") if Addon.getSetting("Ctrakt") != "" else ""
 MUlang = "pt-BR" if Addon.getSetting("MUlang") == "1" else "en"
 MUcache = True if Addon.getSetting("MUcache") == "true" else False
 MUcacheEpi = True if Addon.getSetting("MUcacheEpi") == "true" else False
@@ -39,23 +39,47 @@ logos = params.get('logos',[None])[0]
 info = params.get('info',[None])[0]
 dados = params.get('dados',[{}])[0]
 #-----------------------------------------
-def PlayUrl(name, url, srt=False): #1
+def PlayUrl(name, url, srt=False, RS="0"): #1
+	#ST(url)
+	clearlogo = ""
 	dados2 = eval(dados)
-	#ST(dados2)
+	listitem = xbmcgui.ListItem(path=url)
+	if RS != "0":
+		listitem.setProperty('StartPercent', RS)
+	infol = {}
 	if "mmeta" in dados2:
 		try:
 			ids = json.dumps({u'tmdb': dados2['mmeta']['tmdb_id']})
 			xbmcgui.Window(10000).setProperty('script.trakt.ids', ids)
 		except:
 			pass
+		if MUfanArt:
+			try:
+				fanart = OpenURL("http://webservice.fanart.tv/v3/movies/"+dados2["mmeta"]["imdbnumber"]+"?api_key=f8ba25de3d50ea5655f5b6bd78387878")
+				fanartj = json.loads(fanart)
+				clearlogo = fanartj["hdmovielogo"][0]['url']
+			except:
+				pass
 	if "meta" in dados2:
+		if MUfanArt:
+			#import random
+			try:
+				fanart = OpenURL("https://webservice.fanart.tv/v3/tv/"+dados2["meta"]["tvdb_id"]+"?api_key=f8ba25de3d50ea5655f5b6bd78387878")
+				fanartj = json.loads(fanart)
+				#rand = random.randrange(0,len(fanartj["hdtvlogo"]))
+				clearlogo = fanartj["hdtvlogo"][0]['url']
+			except:
+				pass
+		if 'season' in dados and 'episode' in dados:
+			infol["season"] =  dados2["season"]
+			infol["episode"] =  dados2["episode"]	
+			infol["title"] = re.sub('\d{1,2}x\d{1,3}. ', '', xbmc.getInfoLabel("ListItem.Label"))
 		try:
 			ids = json.dumps({u'tmdb': dados2['meta']['tmdb_id']})
 			xbmcgui.Window(10000).setProperty('script.trakt.ids', ids)
 		except:
 			pass
 	xbmc.log('--- Playing "{0}". {1}'.format(name, url), 2)
-	listitem = xbmcgui.ListItem(path=url)
 	if srt:
 		from pathlib import Path
 		try:
@@ -67,10 +91,13 @@ def PlayUrl(name, url, srt=False): #1
 					break
 		except:
 			pass
-	listitem.setInfo( "video", {} )
+	listitem.setInfo( "video", infol )
+	listitem.setArt({"clearlogo": clearlogo })
 	#listitem.setMimeType('video/mp2t')
 	xbmcplugin.setResolvedUrl(int(sys.argv[1]), True, listitem)
 # --------------------------------------------------
+def mergedicts2(dict1, dict2):
+    return(dict2.update(dict1))
 def mergedicts(x, y):
     z = x.copy()
     z.update(y)
@@ -132,14 +159,13 @@ def AddDir(name, url, mode, iconimage='', logos='', info='', dados={}, isFolder=
 	elif 'mmeta' in dados:
 		dados['mmeta']['mediatype'] = u'movie'
 		dados['mmeta']['Imdbnumber'] = dados['mmeta']['imdbnumber']
-		dados['mmeta']['Duration'] = dados['mmeta']['Runtime']
+		if 'Runtime' in dados['mmeta']:
+			dados['mmeta']['Duration'] = dados['mmeta']['Runtime']
 		dados['mmeta']['tagline'] = ""
 		for i in dados['mmeta']['genre']:
 			dados['mmeta']['tagline'] = i if dados['mmeta']['tagline'] == "" else dados['mmeta']['tagline'] + ", " + i
-		if 'playcount' in dados:
-			dados['mmeta']['playcount'] = playcount
-		else:
-			dados['mmeta'].pop('playcount', 1)
+		if 'pc' in dados:
+			dados['mmeta']['playcount'] = 1 if dados['pc'] else 0
 		liz=xbmcgui.ListItem(name)
 		if "fanart" in dados['mmeta']['art']:
 			liz.setArt({"poster": dados['mmeta']['art']['poster'], "banner": dados['mmeta']['art']['poster'], "fanart": dados['mmeta']['art']['fanart'] })
@@ -157,6 +183,9 @@ def AddDir(name, url, mode, iconimage='', logos='', info='', dados={}, isFolder=
 		dados['mmeta'].pop('cast', 1)
 		dados['mmeta'].pop('castandrole', 1)
 		dados['mmeta'].pop('art', 1)
+		if name:
+			dados['mmeta']['title'] = name
+		#ST(name)
 		liz.setInfo( "video", dados['mmeta'] )
 	else:
 		liz.setContentLookup(False)
@@ -165,11 +194,25 @@ def AddDir(name, url, mode, iconimage='', logos='', info='', dados={}, isFolder=
 	if IsPlayable:
 		liz.setProperty('IsPlayable', 'true')
 	if mode == "trtv.PlayFile":
-		liz.addContextMenuItems(items = [("Download", 'RunPlugin({0}?mode=trtv.DownloadMP4&url={1}&dados={2})'.format(sys.argv[0], quote_plus(url), quote_plus(str(dados)) ))])
+		items = [("Download", 'RunPlugin({0}?mode=trtv.DownloadMP4&url={1}&dados={2})'.format(sys.argv[0], quote_plus(url), quote_plus(str(dados)) )),
+		("Deletar arquivo", 'RunPlugin({0}?mode=trtv.DeleteFile&url={1}&dados={2})'.format(sys.argv[0], quote_plus(url), quote_plus(str(dados)) )),
+		("Parar Download", 'RunPlugin({0}?mode=download.StopDownload)'.format(sys.argv[0] ))]
+		liz.addContextMenuItems(items)
 	elif mode == "PlayUrl" and info == "delete":
 		items = [("Resume Download", 'RunPlugin({0}?mode=trtv.ResumeFile&url={1}&dados={2})'.format(sys.argv[0], quote_plus(url), quote_plus(str(dados)) )),
-		("Deletar arquivo", 'RunPlugin({0}?mode=trtv.DeleteFile&url={1}&dados={2})'.format(sys.argv[0], quote_plus(url), quote_plus(str(dados)) ))]
+		("Deletar arquivo", 'RunPlugin({0}?mode=trtv.DeleteFile&url={1}&dados={2})'.format(sys.argv[0], quote_plus(url), quote_plus(str(dados)) )),
+		("Parar Download", 'RunPlugin({0}?mode=download.StopDownload)'.format(sys.argv[0] ))]
 		liz.addContextMenuItems(items)
+	if mode == "tmdb.Opcoes":
+		liz.addContextMenuItems(items = [("[COLOR green]Recomendações[/COLOR]", 'RunPlugin({0}?mode=tmdb.MovieRecom&url={1}&dados={2})'.format(sys.argv[0], quote_plus(url), quote_plus(str(dados)) )),
+		("[COLOR yellow]Buscar em Trailers.to[/COLOR]", 'RunPlugin({0}?mode=tmdb.DownloadTrtv&url={1}&dados={2})'.format(sys.argv[0], quote_plus(url), quote_plus(str(dados)) )),
+		("Marcar como visto", 'RunPlugin({0}?mode=trakt.PlayTrakt&url={1}&dados={2})'.format(sys.argv[0], quote_plus(url), quote_plus(str(dados)) )),
+		("[COLOR blue]Procurar Providers[/COLOR]", 'RunPlugin({0}?mode=tmdb.FindProvidersM&url={1}&dados={2})'.format(sys.argv[0], quote_plus(url), quote_plus(str(dados)) )),
+		("[COLOR salmon]Collections[/COLOR]", 'RunPlugin({0}?mode=tmdb.Collections&url={1}&dados={2})'.format(sys.argv[0], quote_plus(url), quote_plus(str(dados)) ))	])
+		#liz.addContextMenuItems(items = [])
+	if mode == "trakt.Shows":
+		liz.addContextMenuItems(items = [("[COLOR green]Recomendações[/COLOR]", 'ActivateWindow(10025,{0}?mode=tmdb.tvshow_recom&url={1}&dados={2})'.format(sys.argv[0], quote_plus(url), quote_plus(str(dados)) )),
+		("[COLOR blue]Procurar Providers[/COLOR]", 'RunPlugin({0}?mode=tmdb.FindProvidersTV&url={1}&dados={2})'.format(sys.argv[0], quote_plus(url), quote_plus(str(dados)) )),		])
 		#liz.addContextMenuItems(items = [])
 	u = '{0}?{1}'.format(sys.argv[0], urllib.parse.urlencode(urlParams))
 	xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=u, listitem=liz, isFolder=isFolder)
@@ -256,7 +299,7 @@ def remove_accents(input_str):
 	import unicodedata
 	nfkd_form = unicodedata.normalize('NFKD', input_str)
 	only_ascii = nfkd_form.encode('ASCII', 'ignore')
-	return only_ascii.decode("utf-8") 
+	return re.sub('[^\w\-_\. ]', '', only_ascii.decode("utf-8") ) 
 	
 def ST(x="", o="w"):
 	if o == "1":
